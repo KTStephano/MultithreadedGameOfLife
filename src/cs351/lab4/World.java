@@ -36,6 +36,7 @@ public class World
         else ENGINE.set(x, y, false);
       }
     }
-    ENGINE.runFrame();
+    ENGINE.togglePause(false);
+    ENGINE.togglePause(true);
   }
 }

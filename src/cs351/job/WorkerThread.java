@@ -40,7 +40,18 @@ public class WorkerThread extends Thread
       // time to pause this thread
       jobs = JOB_SYSTEM.getJobs();
       if (jobs != null) for (Job job : jobs) job.run(ID);
-      else yield();
+      else
+      {
+        //yield();
+        try
+        {
+          Thread.sleep(1);
+        }
+        catch (InterruptedException e)
+        {
+
+        }
+      }
     }
     System.out.println("Worker Thread #" + ID + " has finished");
   }
