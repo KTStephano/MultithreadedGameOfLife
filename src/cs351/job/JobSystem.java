@@ -47,6 +47,7 @@ public class JobSystem
         WORKER_THREADS[i] = new WorkerThread(i + 1, this);
         WORKER_THREADS[i].start();
       }
+      System.out.println("Job system started with " + NUM_WORKER_THREADS + " threads");
     }
     finally
     {
@@ -62,6 +63,7 @@ public class JobSystem
       if (!isStarted) throw new RuntimeException("Job System was not started");
       isStarted = false;
       for (int i = 0; i < NUM_WORKER_THREADS; i++) WORKER_THREADS[i].terminate(completeExistingJobs);
+      System.out.println("Job system shutdown");
     }
     finally
     {

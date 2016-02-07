@@ -22,7 +22,7 @@ public class WorkerThread extends Thread
   public void run()
   {
     boolean isRunning = true;
-    System.out.println("Worker Thread #" + ID + " has started");
+    //System.out.println("Worker Thread #" + ID + " has started");
     Collection<Job> jobs = null;
     while (isRunning)
     {
@@ -53,7 +53,7 @@ public class WorkerThread extends Thread
         }
       }
     }
-    System.out.println("Worker Thread #" + ID + " has finished");
+    //System.out.println("Worker Thread #" + ID + " has finished");
   }
 
   public void terminate(boolean completeExistingJobs)

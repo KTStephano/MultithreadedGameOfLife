@@ -6,39 +6,51 @@ import java.util.concurrent.locks.ReentrantLock;
 public class SimulationEngine
 {
   private final ReentrantLock LOCK = new ReentrantLock();
-  private boolean[][] frontBuffer;
-  private boolean[][] backBuffer;
+  private byte[][] frontBuffer;
+  private byte[][] backBuffer;
+  private int worldWidth, worldHeight;
   private GridUpdateJob[] jobs;
   private boolean isStarted = false;
   private boolean isPaused = true;
   private boolean prevFrameFinished = true;
+  private boolean needsToSwapBuffers = true;
   private int numThreads;
   private int numActiveThreads;
   private JobSystem jobSystem;
 
-  public void init(int worldWidth, int worldHeight, int numThreads)
+  public SimulationEngine(int worldWidth, int worldHeight)
+  {
+    this.worldWidth = worldWidth;
+    this.worldHeight = worldHeight;
+    frontBuffer = new byte[worldWidth + 2][worldHeight + 2];
+    backBuffer = new byte[worldWidth + 2][worldHeight + 2];
+  }
+
+  public void init(int numThreads)
   {
     LOCK.lock();
     try
     {
       if (isStarted) throw new RuntimeException("Engine was already started");
+      System.out.println();
+      System.out.println("Initializing engine ...");
       isStarted = true;
       this.numThreads = numThreads;
-      worldWidth += 2; // border
-      worldHeight += 2; // border
       jobs = new GridUpdateJob[numThreads];
       // @TODO: Make sure this is actually right
-      int xOffset = (worldWidth - 2) / numThreads;
+      int xOffset = worldWidth / numThreads;
       for (int i = 0; i < numThreads; i++)
       {
         int xStart = i * xOffset + 1;
         int xEnd = xStart + xOffset;
-        jobs[i] = new GridUpdateJob(this, xStart, xEnd, 1, worldHeight - 1);
+        // when worldWidth / numThreads doesn't divide evenly, this prevents it
+        // from leaving dead cells at the end of the board
+        if (i + 1 >= numThreads) xEnd = worldWidth + 1;
+        jobs[i] = new GridUpdateJob(this, xStart, xEnd, 1, worldHeight + 1);
       }
-      frontBuffer = new boolean[worldWidth][worldHeight];
-      backBuffer = new boolean[worldWidth][worldHeight];
       jobSystem = new JobSystem(numThreads);
       jobSystem.start();
+      System.out.println("Engine initialized");
     }
     finally
     {
@@ -46,13 +58,28 @@ public class SimulationEngine
     }
   }
 
-  public void togglePause(boolean value)
+  public int getNumThreads()
+  {
+    LOCK.lock();
+    try
+    {
+      if (!isStarted) throw new RuntimeException("Engine not started");
+      return numThreads;
+    }
+    finally
+    {
+      LOCK.unlock();
+    }
+  }
+
+  public void togglePause(boolean value, boolean startNextFrame)
   {
     LOCK.lock();
     try
     {
       isPaused = value;
-      if (!isPaused) runFrame();
+      if (!isPaused && startNextFrame) runFrame();
+      else if (!isPaused) swapBuffers();
     }
     finally
     {
@@ -73,12 +100,26 @@ public class SimulationEngine
     }
   }
 
+  public boolean previousFrameCompleted()
+  {
+    LOCK.lock();
+    try
+    {
+      return prevFrameFinished;
+    }
+    finally
+    {
+      LOCK.unlock();
+    }
+  }
+
   public void shutdown()
   {
     LOCK.lock();
     try
     {
       if (!isStarted) throw new RuntimeException("Engine was not started");
+      System.out.println("Engine shutdown");
       isStarted = false;
       jobSystem.stop(false);
     }
@@ -88,52 +129,42 @@ public class SimulationEngine
     }
   }
 
-  public boolean isValid(int x, int y)
+  public int getWorldWidth()
   {
-    LOCK.lock();
-    try
-    {
-      return x >= 1 && x < frontBuffer.length && y >= 1 && y < frontBuffer[0].length;
-    }
-    finally
-    {
-      LOCK.unlock();
-    }
+    return worldWidth;
   }
 
-  public void set(int x, int y, boolean val)
+  public int getWorldHeight()
   {
+    return worldHeight;
+  }
+
+  public boolean isValid(int x, int y)
+  {
+    if (!LOCK.isHeldByCurrentThread()) throw new IllegalStateException("SimulationEngine.lock() not called before isValid");
+    return x >= 1 && x < getWorldWidth() + 1 && y >= 1 && y < getWorldHeight() + 1;
+  }
+
+  public void setAge(int x, int y, int age)
+  {
+    if (!LOCK.isHeldByCurrentThread()) throw new IllegalStateException("Call SimulationEngine.lock() before calls to setAge");
+    // x and y values start at 1 due to border but getWorldWidth/Height
+    // functions report the size without the border
     x++;
     y++;
     if (!isValid(x, y)) throw new RuntimeException("Invalid (x, y) coordinates to set");
-    LOCK.lock();
-    try
-    {
-      if (!isPaused || !prevFrameFinished) return;
-      frontBuffer[x][y] = val;
-      backBuffer[x][y] = val;
-    }
-    finally
-    {
-      LOCK.unlock();
-    }
+    else if (!isPaused || !prevFrameFinished) return;
+    frontBuffer[x][y] = (byte)age;
+    backBuffer[x][y] = (byte)age;
   }
 
-  public boolean get(int x, int y)
+  public int getAge(int x, int y)
   {
     x++;
     y++;
+    if (!LOCK.isHeldByCurrentThread()) throw new IllegalStateException("Call SimulationEngine.lock() before calls to getAge");
     if (!isValid(x, y)) throw new RuntimeException("Invalid (x, y) coordinates to get");
-    LOCK.lock();
-    try
-    {
-      if (!isPaused) return false;
-      return frontBuffer[x][y];
-    }
-    finally
-    {
-      LOCK.unlock();
-    }
+    return frontBuffer[x][y];
   }
 
   public void notifyEngineOfThreadCompletion()
@@ -146,6 +177,7 @@ public class SimulationEngine
       if (numActiveThreads == 0)
       {
         prevFrameFinished = true;
+        needsToSwapBuffers = true;
         startNextFrame = !isPaused;
       }
     }
@@ -154,9 +186,10 @@ public class SimulationEngine
       LOCK.unlock();
     }
     if (startNextFrame) runFrame();
+    else swapBuffers();
   }
 
-  public boolean[][] getFrontBuffer()
+  public byte[][] getFrontBuffer()
   {
     if (LOCK.tryLock())
     {
@@ -172,11 +205,14 @@ public class SimulationEngine
     return null;
   }
 
-  public boolean toggleRenderMode(boolean lock)
+  public void lock()
   {
-    if (lock) return LOCK.tryLock();
-    else LOCK.unlock();
-    return true;
+    LOCK.lock();
+  }
+
+  public void unlock()
+  {
+    LOCK.unlock();
   }
 
   private void runFrame()
@@ -186,9 +222,7 @@ public class SimulationEngine
     {
       if (!isStarted || !prevFrameFinished) return;
       numActiveThreads = numThreads;
-      boolean[][] swap = frontBuffer;
-      frontBuffer = backBuffer;
-      backBuffer = swap;
+      swapBuffers();
       for (GridUpdateJob job : jobs)
       {
         job.initFrame(frontBuffer, backBuffer);
@@ -196,6 +230,23 @@ public class SimulationEngine
       }
       jobSystem.dispatchJobs();
       prevFrameFinished = false;
+    }
+    finally
+    {
+      LOCK.unlock();
+    }
+  }
+
+  private void swapBuffers()
+  {
+    LOCK.lock();
+    try
+    {
+      if (!isStarted || !needsToSwapBuffers) return;
+      byte[][] swap = frontBuffer;
+      frontBuffer = backBuffer;
+      backBuffer = swap;
+      needsToSwapBuffers = false;
     }
     finally
     {

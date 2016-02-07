@@ -1,42 +1,39 @@
 package cs351.lab4;
 
+import cs351.presets.Preset;
 import java.util.Random;
 
 public class World
 {
-  private final int WIDTH, HEIGHT;
   private final SimulationEngine ENGINE;
-  private final Random RAND = new Random();
+  private final Preset PRESET;
+  private String id;
 
-  public World(int width, int height, SimulationEngine engine)
+  public World(String id, Preset preset, SimulationEngine engine)
   {
-    WIDTH = width;
-    HEIGHT = height;
     ENGINE = engine;
+    this.id = id;
+    PRESET = preset;
   }
 
-  public int getWidth()
+  @Override
+  public String toString()
   {
-    return WIDTH;
-  }
-
-  public int getHeight()
-  {
-    return HEIGHT;
+    return id;
   }
 
   public void initEngine()
   {
-    for (int x = 0; x < WIDTH; x++)
+    ENGINE.lock();
+    try
     {
-      for (int y = 0; y < HEIGHT; y++)
-      {
-        int num = RAND.nextInt(100);
-        if (num > 50) ENGINE.set(x, y, true);
-        else ENGINE.set(x, y, false);
-      }
+      PRESET.setInitialEngineState(ENGINE);
     }
-    ENGINE.togglePause(false);
-    ENGINE.togglePause(true);
+    finally
+    {
+      ENGINE.unlock();
+    }
+    ENGINE.togglePause(false, false);
+    ENGINE.togglePause(true, false);
   }
 }
