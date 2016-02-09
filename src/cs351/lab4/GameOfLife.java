@@ -1,9 +1,6 @@
 package cs351.lab4;
 
-import cs351.presets.BlankGrid;
-import cs351.presets.FullGrid;
-import cs351.presets.RandomGrid;
-import cs351.presets.DancingBorder;
+import cs351.presets.*;
 import javafx.animation.AnimationTimer;
 import javafx.application.Application;
 import javafx.collections.FXCollections;
@@ -31,7 +28,8 @@ public class GameOfLife extends Application
     final int WIDTH = 700, HEIGHT = 700, ZOOM = 5;
     ENGINE.init(Runtime.getRuntime().availableProcessors());
     World[] worlds = { new World("Random", new RandomGrid(), ENGINE), new World("Blank", new BlankGrid(), ENGINE),
-                       new World("Full (Minus Edges)", new FullGrid(), ENGINE), new World("Dancing Border", new DancingBorder(), ENGINE) };
+                       new World("Full (Minus Edges)", new FullGrid(), ENGINE), new World("Dancing Border", new DancingBorder(), ENGINE),
+                       new World("Upper-Right Checkered", new UpperRightCheckeredGrid(), ENGINE)};
     worlds[0].initEngine();
     final String WINDOW_TITLE = "Game of Life : 10K x 10K";
     userInterface = new GameUI(ENGINE, WINDOW_TITLE, FXCollections.observableArrayList(worlds), primaryStage, WIDTH, HEIGHT, ZOOM);

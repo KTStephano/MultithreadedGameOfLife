@@ -28,7 +28,7 @@ public class GameUI
   private final int STANDARD_BUTTON_SPACING = 10;
   private final Stage STAGE;
   private final Stage SETTINGS_STAGE = new Stage();
-  private Canvas Canvas;
+  private Canvas canvas;
   private final HBox BUTTON_ROW_HORIZONTAL = new HBox();
   private final SimulationEngine ENGINE;
   private final ObservableList<World> PRESETS;
@@ -48,24 +48,24 @@ public class GameUI
 
     STAGE = stage;
     STAGE.setTitle(title);
-    STAGE.setWidth(this.width);
-    STAGE.setHeight(this.height);
+    //STAGE.setWidth(this.width);
+    //STAGE.setHeight(this.height);
     STAGE.setOnCloseRequest((e) -> signalClose());
 
     BUTTON_ROW_HORIZONTAL.setSpacing(STANDARD_BUTTON_SPACING);
     BorderPane layout = new BorderPane();
     Group root = new Group();
-    Canvas = new Canvas(width, height);
-    layout.setCenter(Canvas);
+    canvas = new Canvas(width, height);
+    layout.setCenter(canvas);
     layout.setTop(BUTTON_ROW_HORIZONTAL);
     root.getChildren().add(layout);
     STAGE.setScene(new Scene(root, Color.WHITE));
     initButtons();
 
-    Canvas.addEventHandler(MouseEvent.MOUSE_PRESSED, this::mousePressedDown);
-    Canvas.addEventHandler(MouseEvent.MOUSE_CLICKED, this::mousePressedAndReleased);
-    Canvas.addEventHandler(ScrollEvent.SCROLL, this::mouseScroll);
-    Canvas.addEventHandler(MouseEvent.MOUSE_DRAGGED, this::mouseDragged);
+    canvas.addEventHandler(MouseEvent.MOUSE_PRESSED, this::mousePressedDown);
+    canvas.addEventHandler(MouseEvent.MOUSE_CLICKED, this::mousePressedAndReleased);
+    canvas.addEventHandler(ScrollEvent.SCROLL, this::mouseScroll);
+    canvas.addEventHandler(MouseEvent.MOUSE_DRAGGED, this::mouseDragged);
 
     stage.show();
   }
@@ -77,7 +77,7 @@ public class GameUI
     // can stop updating after this rendering call
     boolean prevFrameComplete = ENGINE.previousFrameCompleted();
     adjustWindowDimensions();
-    render(Canvas.getGraphicsContext2D());
+    render(canvas.getGraphicsContext2D());
     setNeedsUpdate(!prevFrameComplete);
   }
 
@@ -98,8 +98,8 @@ public class GameUI
     {
       width = (int) STAGE.getWidth();
       height = (int) STAGE.getHeight();
-      Canvas.setWidth(width);
-      Canvas.setHeight(height);
+      canvas.setWidth(width);
+      canvas.setHeight(height);
       setNeedsUpdate(true);
     }
   }
@@ -319,7 +319,7 @@ public class GameUI
     if (viewXOffset < 0) viewXOffset = MIN_VIEW_OFFSET;
     if (viewYOffset < 0) viewYOffset = MIN_VIEW_OFFSET;
     if (viewXOffset > MAX_VIEW_OFFSET) viewXOffset = MAX_VIEW_OFFSET;
-    //if (viewYOffset > MAX_VIEW_OFFSET) viewYOffset = MAX_VIEW_OFFSET;
+    if (viewYOffset > MAX_VIEW_OFFSET) viewYOffset = MAX_VIEW_OFFSET;
   }
 
   private void setNeedsUpdate(boolean val)
