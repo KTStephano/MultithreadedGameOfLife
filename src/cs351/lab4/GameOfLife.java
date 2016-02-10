@@ -13,12 +13,29 @@ public class GameOfLife extends Application
   private final SimulationEngine ENGINE = new SimulationEngine(GRID_SIZE, GRID_SIZE);
   private GameUI userInterface;
 
+  private final long[] frameTimes = new long[100];
+  private int frameTimeIndex = 0 ;
+  private boolean arrayFilled = false ;
+
   private class MainGameLoop extends AnimationTimer
   {
     @Override
     public void handle(long now)
     {
       userInterface.update();
+
+      long oldFrameTime = frameTimes[frameTimeIndex] ;
+      frameTimes[frameTimeIndex] = now ;
+      frameTimeIndex = (frameTimeIndex + 1) % frameTimes.length ;
+      if (frameTimeIndex == 0) {
+        arrayFilled = true ;
+      }
+      if (arrayFilled) {
+        long elapsedNanos = now - oldFrameTime ;
+        long elapsedNanosPerFrame = elapsedNanos / frameTimes.length ;
+        double frameRate = 1_000_000_000.0 / elapsedNanosPerFrame ;
+        //System.out.println((String.format("Current frame rate: %.3f", frameRate)));
+      }
     }
   }
 

@@ -48,8 +48,8 @@ public class GameUI
 
     STAGE = stage;
     STAGE.setTitle(title);
-    //STAGE.setWidth(this.width);
-    //STAGE.setHeight(this.height);
+    STAGE.setWidth(this.width);
+    STAGE.setHeight(this.height);
     STAGE.setOnCloseRequest((e) -> signalClose());
 
     BUTTON_ROW_HORIZONTAL.setSpacing(STANDARD_BUTTON_SPACING);
@@ -247,8 +247,8 @@ public class GameUI
     PRESET_LIST.getSelectionModel().selectedItemProperty().addListener((value, oldVal, newVal) ->
     {
       int numThreads = ENGINE.getNumThreads();
-      ENGINE.shutdown();
-      ENGINE.init(numThreads);
+      //ENGINE.shutdown();
+      //ENGINE.init(numThreads);
       value.getValue().initEngine();
       setNeedsUpdate(true);
     });
@@ -315,7 +315,7 @@ public class GameUI
   private void adjustViewOffsetsToZoom()
   {
     final int MAX_VIEW_OFFSET = ENGINE.getWorldWidth() - width / zoom;
-    System.out.println(viewXOffset);
+    //System.out.println(viewXOffset);
     if (viewXOffset < 0) viewXOffset = MIN_VIEW_OFFSET;
     if (viewYOffset < 0) viewYOffset = MIN_VIEW_OFFSET;
     if (viewXOffset > MAX_VIEW_OFFSET) viewXOffset = MAX_VIEW_OFFSET;
