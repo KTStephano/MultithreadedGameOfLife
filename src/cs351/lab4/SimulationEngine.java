@@ -57,7 +57,6 @@ public class SimulationEngine
       isStarted = true;
       this.numThreads = numThreads;
       jobs = new GridUpdateJob[numThreads];
-      // @TODO: Make sure this is actually right
       int xOffset = worldWidth / numThreads;
       for (int i = 0; i < numThreads; i++)
       {

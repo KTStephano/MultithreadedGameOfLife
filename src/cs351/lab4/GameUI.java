@@ -31,7 +31,6 @@ public class GameUI
   private int zoom;
   private final int MIN_VIEW_OFFSET = 0;
   private int viewXOffset = MIN_VIEW_OFFSET, viewYOffset = MIN_VIEW_OFFSET;
-  private int centerX, centerY;
   private int prevX, prevY;
   private final int STANDARD_BUTTON_SPACING = 10;
   private final Stage STAGE;
@@ -149,8 +148,6 @@ public class GameUI
       windowHeight = (int) STAGE.getHeight();
       canvasWidth = windowWidth - (xStart + xEnd);
       canvasHeight = windowHeight - (yStart + yEnd);
-      System.out.println(canvasWidth);
-      System.out.println(yStart + " " + yEnd);
       canvas.setWidth(canvasWidth);
       canvas.setHeight(canvasHeight);
       setNeedsUpdate(true);
@@ -263,12 +260,11 @@ public class GameUI
   private void initSettings(Button settings)
   {
     final int WIDTH = 250;
-    final int HEIGHT = 300;
+    final int HEIGHT = 265;
     SETTINGS_STAGE.setTitle("Settings");
     SETTINGS_STAGE.setWidth(WIDTH);
     SETTINGS_STAGE.setHeight(HEIGHT);
     SETTINGS_STAGE.setResizable(false);
-    //SETTINGS_STAGE.setAlwaysOnTop(true);
 
     final Label THREAD_LABEL = new Label("Threads ");
     final TextField THREAD_TEXT = new TextField();
@@ -277,7 +273,6 @@ public class GameUI
     HBox threadRow = new HBox();
     VBox settingsCol = new VBox();
     settingsCol.setSpacing(STANDARD_BUTTON_SPACING);
-    //threadRow.setSpacing(STANDARD_BUTTON_SPACING);
     threadRow.getChildren().addAll(THREAD_LABEL, THREAD_TEXT);
     settingsCol.getChildren().addAll(threadRow, new Label("Presets"), PRESET_LIST);
 
@@ -304,17 +299,28 @@ public class GameUI
     });
     apply.setOnAction((e) ->
     {
+      int newNumThreads = 0;
       SETTINGS_STAGE.hide();
+      try
+      {
+        newNumThreads = Integer.parseInt(THREAD_TEXT.getText());
+        if (newNumThreads > 8) return;
+      }
+      catch (NumberFormatException ex)
+      {
+        return;
+      }
       STAGE.hide();
       if (!ENGINE.isPaused()) ENGINE.togglePause(true, false);
       ENGINE.shutdown();
-      ENGINE.init(Integer.parseInt(THREAD_TEXT.getText()));
+      ENGINE.init(newNumThreads);
       PRESET_LIST.getSelectionModel().getSelectedItem().initEngine();
       setNeedsUpdate(true);
       STAGE.show();
     });
     PRESET_LIST.getSelectionModel().selectedItemProperty().addListener((value, oldVal, newVal) ->
     {
+      System.out.println("-> Loading preset: " + value.getValue());
       value.getValue().initEngine();
       setNeedsUpdate(true);
     });
@@ -404,19 +410,11 @@ public class GameUI
   {
     final int MAX_ZOOM = 50;
     final int MIN_ZOOM = 1;
-    //final int currCenterTileX = width / zoom / 2;
-    //final int currCenterTileY = height / zoom / 2;
-    //System.out.println(currCenterTileX);
     int scrollAmnt = (int)(e.getDeltaY() / e.getDeltaY());
     if (e.getDeltaY() < 0) scrollAmnt *= -1;
     zoom += scrollAmnt;
     if (zoom > MAX_ZOOM) zoom = MAX_ZOOM;
     else if (zoom < MIN_ZOOM) zoom = MIN_ZOOM;
-    //int changeCenterTileX = currCenterTileX - (width / zoom / 2);
-    //int changeCenterTileY = currCenterTileY - (height / zoom / 2);
-    //System.out.println((width / zoom / 2) + " " + changeCenterTileX);
-    //viewXOffset += changeCenterTileX;
-    //viewYOffset += changeCenterTileY;
     adjustViewOffsetsToZoom();
     setNeedsUpdate(true);
   }
