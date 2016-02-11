@@ -8,6 +8,14 @@ import java.util.PriorityQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * This class serves as an easy way to start up to 256 threads and
+ * not have to worry about managing them. The ideal way to use this
+ * class is to call start() once and then use it until either the program
+ * is quitting or until it is not needed anymore in its current state.
+ *
+ * @author Justin Hall
+ */
 public class JobSystem
 {
   private final ReentrantLock LOCK;
@@ -22,6 +30,13 @@ public class JobSystem
   private final int MAX_JOBS_PER_GROUP = 100;
   private boolean isStarted = false;
 
+  /**
+   * The number of worker threads becomes constant internally and cannot be changed.
+   * This constructor does some initial work in allocating resources but does not
+   * start the job system.
+   *
+   * @param numWorkerThreads number of worker threads from 1 to 256
+   */
   public JobSystem(int numWorkerThreads)
   {
     final int MIN_THREADS = 1;
@@ -35,6 +50,10 @@ public class JobSystem
     JOBS = new PriorityBlockingQueue<>(10, (o1, o2) -> o2.getPriority() - o1.getPriority() );
   }
 
+  /**
+   * Creates a number of threads equal to NUM_WORKER_THREADS. After calling this function
+   * the job system is ready to accept jobs.
+   */
   public void start()
   {
     LOCK.lock();
@@ -55,6 +74,13 @@ public class JobSystem
     }
   }
 
+  /**
+   * Terminates all existing threads.
+   *
+   * @param completeExistingJobs if this is true, threads will keep working until
+   *                             all jobs in the job system's queue are completed -
+   *                             if false they all quit as soon as possible
+   */
   public void stop(boolean completeExistingJobs)
   {
     LOCK.lock();
@@ -71,6 +97,16 @@ public class JobSystem
     }
   }
 
+  /**
+   * Takes a single job object and tries to add it to the back buffer (threads can't
+   * see this buffer). It does this by looking at the first element in the buffer
+   * for the job's priority (which is usually the buffer with the fewest elements
+   * because of the sorting done by the PriorityQueue). If it exists the job is added.
+   * If not the job system will try to expand its buffer by a certain amount to not
+   * only accept the current job but also future jobs.
+   *
+   * @param job job to be added to the back buffer
+   */
   public void submitJob(Job job)
   {
     final int PRIORITY = job.getPriority();
@@ -100,12 +136,23 @@ public class JobSystem
     }
   }
 
+  /**
+   * Gets the top collection of jobs from the front buffer.
+   *
+   * @return collection of jobs from the front buffer
+   */
   public Collection<Job> getJobs()
   {
     final JobGroup GROUP = JOBS.poll();
     return GROUP != null ? GROUP.getJobs() : null;
   }
 
+  /**
+   * This takes all jobs from the back buffer (that have jobs) and
+   * adds them to the front buffer so that the threads can see them. At
+   * the end of the loop it re-adds any buffers it took off of the back buffer
+   * which had 0 jobs.
+   */
   public void dispatchJobs()
   {
     LOCK.lock();
@@ -133,7 +180,7 @@ public class JobSystem
   }
 
   /**
-   * Attempts to add NUM_WORKER_THREADS new buffers to the general JOB_BUFFER for the given priority
+   * Attempts to add NUM_WORKER_THREADS new buffers to the back buffer for the given priority
    *
    * @param priority priority to add the new buffers at
    */

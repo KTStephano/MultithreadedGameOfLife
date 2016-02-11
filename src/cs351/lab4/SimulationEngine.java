@@ -3,6 +3,13 @@ package cs351.lab4;
 import cs351.job.JobSystem;
 import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * This is used to manage the current state of the simulation and create
+ * the next step in the simulation. Starts up the job system so that multithreading
+ * can be used.
+ *
+ * @author Justin Hall
+ */
 public class SimulationEngine
 {
   private final ReentrantLock LOCK = new ReentrantLock();
@@ -18,6 +25,13 @@ public class SimulationEngine
   private int numActiveThreads;
   private JobSystem jobSystem;
 
+  /**
+   * Creates the front abd back buffers with the given width/height
+   * values (with +2 for border padding).
+   *
+   * @param worldWidth width of the grid in pixels
+   * @param worldHeight height of the grid in pixels
+   */
   public SimulationEngine(int worldWidth, int worldHeight)
   {
     this.worldWidth = worldWidth;
@@ -26,6 +40,12 @@ public class SimulationEngine
     backBuffer = new byte[worldWidth + 2][worldHeight + 2];
   }
 
+  /**
+   * This function performs initial setup so that the engine is ready to begin
+   * the simulation.
+   *
+   * @param numThreads number of threads to ask the job system to create
+   */
   public void init(int numThreads)
   {
     LOCK.lock();
@@ -58,6 +78,11 @@ public class SimulationEngine
     }
   }
 
+  /**
+   * Gets the number of threads the engine is currently using.
+   *
+   * @return number of threads
+   */
   public int getNumThreads()
   {
     LOCK.lock();
@@ -72,6 +97,16 @@ public class SimulationEngine
     }
   }
 
+  /**
+   * When this is called the engine will either wake back up or stop active
+   * execution. startNextFrame is a flag that lets the engine be unpaused
+   * without starting the next frame (forces a buffer swap without continuing
+   * execution).
+   *
+   * @param value true if paused and false if resumed
+   * @param startNextFrame if true the next frame is run (which spawns future frames),
+   *                       but if false it just swaps the buffers
+   */
   public void togglePause(boolean value, boolean startNextFrame)
   {
     LOCK.lock();
@@ -87,6 +122,11 @@ public class SimulationEngine
     }
   }
 
+  /**
+   * Checks if the engine is paused.
+   *
+   * @return true if paused and false if not
+   */
   public boolean isPaused()
   {
     LOCK.lock();
@@ -100,6 +140,11 @@ public class SimulationEngine
     }
   }
 
+  /**
+   * If the previous frame it was working on is done, this will return true.
+   *
+   * @return true if yes and false if not
+   */
   public boolean previousFrameCompleted()
   {
     LOCK.lock();
@@ -113,6 +158,9 @@ public class SimulationEngine
     }
   }
 
+  /**
+   * Shuts down the job system so that the program can exit cleanly.
+   */
   public void shutdown()
   {
     LOCK.lock();
@@ -129,44 +177,82 @@ public class SimulationEngine
     }
   }
 
+  /**
+   * Returns the world width.
+   *
+   * @return world width in pixels (minus the border padding)
+   */
   public int getWorldWidth()
   {
     return worldWidth;
   }
 
+  /**
+   * Returns the world height.
+   *
+   * @return world height in pixels (minus the border padding)
+   */
   public int getWorldHeight()
   {
     return worldHeight;
   }
 
-  public boolean isValid(int x, int y)
+  /**
+   * Checks if the given (x, y) pair is valid.
+   *
+   * @param x x-value
+   * @param y y-value
+   * @return true if valid and false if not
+   * @throws IllegalStateException if SimulationEngine.lock() is not called before this
+   */
+  public boolean isValid(int x, int y) throws IllegalStateException
   {
     if (!LOCK.isHeldByCurrentThread()) throw new IllegalStateException("SimulationEngine.lock() not called before isValid");
     return x >= 1 && x < getWorldWidth() + 1 && y >= 1 && y < getWorldHeight() + 1;
   }
 
-  public void setAge(int x, int y, int age)
+  /**
+   * Sets the age of the cell at the given (x, y) location.
+   *
+   * @param x x-location
+   * @param y-location
+   * @param age age of the cell in generations (0 - 10)
+   * @throws RuntimeException if SimulationEngine.lock() is not called before this or if the (x, y) pair is invalid
+   */
+  public void setAge(int x, int y, int age) throws RuntimeException
   {
     if (!LOCK.isHeldByCurrentThread()) throw new IllegalStateException("Call SimulationEngine.lock() before calls to setAge");
     // x and y values start at 1 due to border but getWorldWidth/Height
     // functions report the size without the border
     x++;
     y++;
-    if (!isValid(x, y)) throw new RuntimeException("Invalid (x, y) coordinates to set");
+    if (!isValid(x, y)) throw new RuntimeException("Invalid (x, y) coordinates to setAge");
     else if (!isPaused || !prevFrameFinished) return;
     frontBuffer[x][y] = (byte)age;
     backBuffer[x][y] = (byte)age;
   }
 
-  public int getAge(int x, int y)
+  /**
+   * Gets the age of the cell at the given (x, y) coordinates.
+   *
+   * @param x x-location
+   * @param y y-location
+   * @return age of the cell
+   * @throws RuntimeException if SimulationEngine.lock() is not called before this or if the given (x, y) pair is invalid
+   */
+  public int getAge(int x, int y) throws RuntimeException
   {
     x++;
     y++;
     if (!LOCK.isHeldByCurrentThread()) throw new IllegalStateException("Call SimulationEngine.lock() before calls to getAge");
-    if (!isValid(x, y)) throw new RuntimeException("Invalid (x, y) coordinates to get");
+    else if (!isValid(x, y)) throw new RuntimeException("Invalid (x, y) coordinates to getAge");
     return frontBuffer[x][y];
   }
 
+  /**
+   * This is called by the jobs when they are finished - when the number of working
+   * threads hits 0 the engine knows it needs to start the next frame.
+   */
   public void notifyEngineOfThreadCompletion()
   {
     LOCK.lock();
@@ -189,32 +275,26 @@ public class SimulationEngine
     else swapBuffers();
   }
 
-  public byte[][] getFrontBuffer()
-  {
-    if (LOCK.tryLock())
-    {
-      try
-      {
-        return frontBuffer;
-      }
-      finally
-      {
-        LOCK.unlock();
-      }
-    }
-    return null;
-  }
-
+  /**
+   * Locks the engine for synchronization (lock is maintained until unlock() is called).
+   */
   public void lock()
   {
     LOCK.lock();
   }
 
+  /**
+   * Unlocks the engine.
+   */
   public void unlock()
   {
     LOCK.unlock();
   }
 
+  /**
+   * Starts the next frame by swapping the buffers, re-adding the jobs with updated
+   * buffers, and then dispatching the jobs.
+   */
   private void runFrame()
   {
     LOCK.lock();
@@ -237,6 +317,9 @@ public class SimulationEngine
     }
   }
 
+  /**
+   * Swaps the front and back buffers with each other.
+   */
   private void swapBuffers()
   {
     LOCK.lock();

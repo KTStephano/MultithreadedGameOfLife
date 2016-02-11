@@ -18,12 +18,20 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
+/**
+ * This class represents the UI for the game. It performs input handling,
+ * canvas resizing and rendering.
+ *
+ * @author Justin Hall
+ */
 public class GameUI
 {
-  private int width, height;
+  private int windowWidth, windowHeight;
+  private int canvasWidth, canvasHeight;
   private int zoom;
   private final int MIN_VIEW_OFFSET = 0;
   private int viewXOffset = MIN_VIEW_OFFSET, viewYOffset = MIN_VIEW_OFFSET;
+  private int centerX, centerY;
   private int prevX, prevY;
   private final int STANDARD_BUTTON_SPACING = 10;
   private final Stage STAGE;
@@ -38,18 +46,29 @@ public class GameUI
   // holds all of the presets after the UI is initialized
   private final ListView<World> PRESET_LIST = new ListView<>();
 
+  /**
+   * Takes a set of initial parameters to use to set up the UI.
+   *
+   * @param engine SimulationEngine object for callbacks
+   * @param title title to use for the main window
+   * @param presets list of presets (World objects) to use to populate the preset panel
+   * @param stage Stage object representing the main window
+   * @param width width to use for the window
+   * @param height height to use for the window
+   * @param zoom starting zoom (lower values being further away)
+   */
   public GameUI(SimulationEngine engine, String title, ObservableList<World> presets, Stage stage, int width, int height, int zoom)
   {
     ENGINE = engine;
     PRESETS = presets;
-    this.width = width;
-    this.height = height;
     this.zoom = zoom;
 
     STAGE = stage;
     STAGE.setTitle(title);
-    STAGE.setWidth(this.width);
-    STAGE.setHeight(this.height);
+    STAGE.setWidth(width);
+    STAGE.setHeight(height);
+    STAGE.setWidth(width);
+    STAGE.setHeight(height);
     STAGE.setOnCloseRequest((e) -> signalClose());
 
     BUTTON_ROW_HORIZONTAL.setSpacing(STANDARD_BUTTON_SPACING);
@@ -59,7 +78,7 @@ public class GameUI
     layout.setCenter(canvas);
     layout.setTop(BUTTON_ROW_HORIZONTAL);
     root.getChildren().add(layout);
-    STAGE.setScene(new Scene(root, Color.WHITE));
+    STAGE.setScene(new Scene(root, width, height, Color.WHITE));
     initButtons();
 
     canvas.addEventHandler(MouseEvent.MOUSE_PRESSED, this::mousePressedDown);
@@ -67,9 +86,15 @@ public class GameUI
     canvas.addEventHandler(ScrollEvent.SCROLL, this::mouseScroll);
     canvas.addEventHandler(MouseEvent.MOUSE_DRAGGED, this::mouseDragged);
 
+    adjustWindowDimensions();
+    adjustViewOffsetsToZoom();
     stage.show();
   }
 
+  /**
+   * This is the main entry point for this class and should be called as much as
+   * possible (up to screen refresh rate) for the UI to have a responsive feel.
+   */
   public void update()
   {
     // if prevFrameComplete is true at the start of this, the engine has already
@@ -81,43 +106,76 @@ public class GameUI
     setNeedsUpdate(!prevFrameComplete);
   }
 
+  /**
+   * Makes sure that the main window and the settings window are close so that
+   * the program can exit cleanly.
+   */
   public void signalClose()
   {
     SETTINGS_STAGE.close();
     STAGE.close();
   }
 
+  /**
+   * This should be called before the first call to update.
+   *
+   * @param colors array of 11 elements representing the different colors to use
+   *               for the different ages with element 0 being for dead cells
+   *               and element 10 being for the oldest of cells
+   */
   public void setRenderingColorsBasedOnAge(Color[] colors)
   {
     availableColors = colors;
   }
 
+  /**
+   * If the windowWidth/windowHeight variables are out of sync with the main window,
+   * a resize event has occurred. This function then recalculates the canvas width and height
+   * and sets the needsUpdate flag so that the renderer will update the screen at least once afterwards.
+   */
   private void adjustWindowDimensions()
   {
-    if (width != (int)STAGE.getWidth() || height != (int)STAGE.getHeight())
+    if (windowWidth != (int)STAGE.getWidth() || windowHeight != (int)STAGE.getHeight())
     {
-      width = (int) STAGE.getWidth();
-      height = (int) STAGE.getHeight();
-      canvas.setWidth(width);
-      canvas.setHeight(height);
+      // Hard-coded insets: was not able to get a better solution working in time. They
+      // are used to calculate the canvas width/height.
+      int xStart = 8;
+      int xEnd = 8;
+
+      int yStart = 31;
+      int yEnd = 8;
+
+      windowWidth = (int) STAGE.getWidth();
+      windowHeight = (int) STAGE.getHeight();
+      canvasWidth = windowWidth - (xStart + xEnd);
+      canvasHeight = windowHeight - (yStart + yEnd);
+      System.out.println(canvasWidth);
+      System.out.println(yStart + " " + yEnd);
+      canvas.setWidth(canvasWidth);
+      canvas.setHeight(canvasHeight);
       setNeedsUpdate(true);
     }
   }
 
+  /**
+   * Takes a GraphicsContext object and tries to render the current state
+   * of the simulation. If the zoom is 5 and up, grid lines are drawn. If not
+   * it just draws the cells with their current age/death color.
+   *
+   * @param context GraphicsContext object to use for draw calls
+   */
   private void render(GraphicsContext context)
   {
     if (ENGINE.isPaused() && !needsUpdate) return;
     else if (availableColors == null) return;
     context.setFill(Color.WHITE);
-    context.fillRect(0, 0, width, height);
+    context.fillRect(0, 0, windowWidth, windowHeight);
     context.setFill(Color.BLACK);
     ENGINE.lock();
     try
     {
-      //byte[][] grid = ENGINE.getFrontBuffer();
-      //if (grid == null) return;
-      int numCellsX = width / zoom;
-      int numCellsY = height / zoom;
+      int numCellsX = windowWidth / zoom;
+      int numCellsY = windowHeight / zoom;
       int totalWidth = viewXOffset + numCellsX < ENGINE.getWorldWidth() ? viewXOffset + numCellsX : ENGINE.getWorldWidth();
       int totalHeight = viewYOffset + numCellsY < ENGINE.getWorldHeight() ? viewYOffset + numCellsY : ENGINE.getWorldHeight();
       for (int x = viewXOffset; x < totalWidth; x++)
@@ -133,7 +191,6 @@ public class GameUI
             context.fillRect(currX, currY, zoom, zoom);
             context.setFill(availableColors[age]);
             context.fillRect(currX + 1, currY + 1, zoom - 1, zoom - 1);
-            //context.setFill(Color.BLACK);
           }
           else if (age > 0)
           {
@@ -149,6 +206,10 @@ public class GameUI
     }
   }
 
+  /**
+   * Sets up the play, pause, next, reset and settings buttons and then initializes
+   * the settings panel by calling initSettings().
+   */
   private void initButtons()
   {
     final Button PLAY = addButton("Play");
@@ -193,13 +254,21 @@ public class GameUI
     });
   }
 
+  /**
+   * Creates the settings window and its labels/button/preset list so the
+   * user can change the settings for the simulation.
+   *
+   * @param settings settings button
+   */
   private void initSettings(Button settings)
   {
+    final int WIDTH = 250;
+    final int HEIGHT = 300;
     SETTINGS_STAGE.setTitle("Settings");
-    SETTINGS_STAGE.setWidth(250);
-    SETTINGS_STAGE.setHeight(250);
+    SETTINGS_STAGE.setWidth(WIDTH);
+    SETTINGS_STAGE.setHeight(HEIGHT);
     SETTINGS_STAGE.setResizable(false);
-    SETTINGS_STAGE.setAlwaysOnTop(true);
+    //SETTINGS_STAGE.setAlwaysOnTop(true);
 
     final Label THREAD_LABEL = new Label("Threads ");
     final TextField THREAD_TEXT = new TextField();
@@ -246,14 +315,18 @@ public class GameUI
     });
     PRESET_LIST.getSelectionModel().selectedItemProperty().addListener((value, oldVal, newVal) ->
     {
-      int numThreads = ENGINE.getNumThreads();
-      //ENGINE.shutdown();
-      //ENGINE.init(numThreads);
       value.getValue().initEngine();
       setNeedsUpdate(true);
     });
   }
 
+  /**
+   * Adds a button to the BUTTON_ROW_HORIZONTAL HBox which is set to sit along
+   * the top of the window.
+   *
+   * @param text text for the button
+   * @return reference to the newly-created button
+   */
   private Button addButton(String text)
   {
     Button button = new Button(text);
@@ -263,6 +336,13 @@ public class GameUI
     return button;
   }
 
+  /**
+   * When the mouse is pressed down (but not released), this function is called
+   * and sets prevX/prevY so that the mouse drag function can use them to calculate
+   * the change in cursor position between frames.
+   *
+   * @param e generated mouse event
+   */
   private void mousePressedDown(MouseEvent e)
   {
     mouseDragged = false; // flag used by mousePressedAndReleased
@@ -271,6 +351,13 @@ public class GameUI
     setNeedsUpdate(true);
   }
 
+  /**
+   * This is called when the button is pressed and released. This is separated
+   * from mousePressedDown so that the user does not unintentionally toggle
+   * the life of one of the cells when they wanted to perform a drag motion.
+   *
+   * @param e generated mouse event
+   */
   private void mousePressedAndReleased(MouseEvent e)
   {
     if (mouseDragged) return;
@@ -279,6 +366,7 @@ public class GameUI
     {
       int x = (viewXOffset * zoom + (int)e.getX()) / zoom;
       int y = (viewYOffset * zoom + (int)e.getY()) / zoom;
+      if (x < 0 || x >= ENGINE.getWorldWidth() || y < 0 || y >= ENGINE.getWorldHeight()) return;
       ENGINE.setAge(x, y, ENGINE.getAge(x, y) > 0 ? 0 : 1);
     }
     finally
@@ -288,6 +376,13 @@ public class GameUI
     setNeedsUpdate(true);
   }
 
+  /**
+   * When the mouse is dragged this function is called and the viewX/YOffset variables
+   * are updated and then adjusted if necessary to prevent them from going past
+   * the edge of the grid.
+   *
+   * @param e generated mouse event
+   */
   private void mouseDragged(MouseEvent e)
   {
     mouseDragged = true;
@@ -299,29 +394,52 @@ public class GameUI
     setNeedsUpdate(true);
   }
 
+  /**
+   * Whenever the mouse wheel is used, this function adjusts
+   * the zoom and viewing offsets so the user can zoom in and out.
+   *
+   * @param e generated mouse event
+   */
   private void mouseScroll(ScrollEvent e)
   {
     final int MAX_ZOOM = 50;
     final int MIN_ZOOM = 1;
+    //final int currCenterTileX = width / zoom / 2;
+    //final int currCenterTileY = height / zoom / 2;
+    //System.out.println(currCenterTileX);
     int scrollAmnt = (int)(e.getDeltaY() / e.getDeltaY());
     if (e.getDeltaY() < 0) scrollAmnt *= -1;
     zoom += scrollAmnt;
     if (zoom > MAX_ZOOM) zoom = MAX_ZOOM;
     else if (zoom < MIN_ZOOM) zoom = MIN_ZOOM;
+    //int changeCenterTileX = currCenterTileX - (width / zoom / 2);
+    //int changeCenterTileY = currCenterTileY - (height / zoom / 2);
+    //System.out.println((width / zoom / 2) + " " + changeCenterTileX);
+    //viewXOffset += changeCenterTileX;
+    //viewYOffset += changeCenterTileY;
     adjustViewOffsetsToZoom();
     setNeedsUpdate(true);
   }
 
+  /**
+   * This function performs bounds checking to make sure the user doesn't drag
+   * off the edge of the board.
+   */
   private void adjustViewOffsetsToZoom()
   {
-    final int MAX_VIEW_OFFSET = ENGINE.getWorldWidth() - width / zoom;
-    //System.out.println(viewXOffset);
+    final int MAX_VIEWX_OFFSET = (ENGINE.getWorldWidth() - canvasWidth / zoom);
+    final int MAX_VIEWY_OFFSET = (ENGINE.getWorldWidth() - canvasHeight / zoom);
     if (viewXOffset < 0) viewXOffset = MIN_VIEW_OFFSET;
     if (viewYOffset < 0) viewYOffset = MIN_VIEW_OFFSET;
-    if (viewXOffset > MAX_VIEW_OFFSET) viewXOffset = MAX_VIEW_OFFSET;
-    if (viewYOffset > MAX_VIEW_OFFSET) viewYOffset = MAX_VIEW_OFFSET;
+    if (viewXOffset > MAX_VIEWX_OFFSET) viewXOffset = MAX_VIEWX_OFFSET;
+    if (viewYOffset > MAX_VIEWY_OFFSET) viewYOffset = MAX_VIEWY_OFFSET;
   }
 
+  /**
+   * Setter function for the needsUpdate flag.
+   *
+   * @param val true if the renderer needs to redraw the screen and false if not
+   */
   private void setNeedsUpdate(boolean val)
   {
     needsUpdate = val;

@@ -2,8 +2,18 @@ package cs351.presets;
 
 import cs351.lab4.SimulationEngine;
 
+/**
+ * Sets the engine to have a full grid except for its borders.
+ *
+ * @author Justin Hall
+ */
 public class FullGrid implements Preset
 {
+  /**
+   * Runs through every cell and sets it to alive (except borders).
+   *
+   * @param engine SimulationEngine object to use.
+   */
   @Override
   public void setInitialEngineState(SimulationEngine engine)
   {

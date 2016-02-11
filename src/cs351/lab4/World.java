@@ -1,8 +1,12 @@
 package cs351.lab4;
 
 import cs351.presets.Preset;
-import java.util.Random;
 
+/**
+ *
+ *
+ * @author Justin Hall
+ */
 public class World
 {
   private final SimulationEngine ENGINE;

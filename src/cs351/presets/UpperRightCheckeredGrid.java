@@ -2,8 +2,20 @@ package cs351.presets;
 
 import cs351.lab4.SimulationEngine;
 
+/**
+ * Creates the checkerboard-like starting state for the engine.
+ *
+ * @author Justin Hall
+ */
 public class UpperRightCheckeredGrid implements Preset
 {
+
+  /**
+   * Walks along the diagonal starting from x=0, y=0 until x=engine.getWorldWidth(),
+   * y=engine.getWorldWidth() and calls drawDiagonalUpwardFromStartX.
+   *
+   * @param engine SimulationEngine object to use.
+   */
   @Override
   public void setInitialEngineState(SimulationEngine engine)
   {
@@ -14,19 +26,27 @@ public class UpperRightCheckeredGrid implements Preset
     while (currDiagonal < engine.getWorldWidth())
     {
       aliveCells++;
-      drawDiagonalDownwardFromStartX(engine, currDiagonal, currDiagonal);
+      drawDiagonalUpwardFromStartX(engine, currDiagonal, currDiagonal);
       currDiagonal++;
       if (aliveCells >= ALIVE_CELLS_PER_BLOCK)
       {
         aliveCells = 0;
+        // skip ahead by an extra one along the diagonal
         currDiagonal++;
       }
     }
   }
 
-  private void drawDiagonalDownwardFromStartX(SimulationEngine engine, int startX, int startY)
+  /**
+   * From the given startX, startY, it will draw a diagonal line upwards until it
+   * reaches the bounds of the grid.
+   *
+   * @param engine SimulationEngine object to use
+   * @param startX x-value to start with
+   * @param startY y-value to start with
+   */
+  private void drawDiagonalUpwardFromStartX(SimulationEngine engine, int startX, int startY)
   {
-    System.out.println(startX);
     while (startX < engine.getWorldWidth() && startY >= 0)
     {
       engine.setAge(startX, startY, 1);
