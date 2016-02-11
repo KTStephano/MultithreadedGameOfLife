@@ -101,6 +101,7 @@ public class GameUI
     // can stop updating after this rendering call
     boolean prevFrameComplete = ENGINE.previousFrameCompleted();
     adjustWindowDimensions();
+    adjustViewOffsetsToZoom();
     render(canvas.getGraphicsContext2D());
     setNeedsUpdate(!prevFrameComplete);
   }
@@ -142,7 +143,7 @@ public class GameUI
       int xEnd = 8;
 
       int yStart = 31;
-      int yEnd = 8;
+      int yEnd = 31;
 
       windowWidth = (int) STAGE.getWidth();
       windowHeight = (int) STAGE.getHeight();
@@ -321,6 +322,8 @@ public class GameUI
     PRESET_LIST.getSelectionModel().selectedItemProperty().addListener((value, oldVal, newVal) ->
     {
       System.out.println("-> Loading preset: " + value.getValue());
+      viewXOffset = MIN_VIEW_OFFSET;
+      viewYOffset = MIN_VIEW_OFFSET;
       value.getValue().initEngine();
       setNeedsUpdate(true);
     });
@@ -426,7 +429,7 @@ public class GameUI
   private void adjustViewOffsetsToZoom()
   {
     final int MAX_VIEWX_OFFSET = (ENGINE.getWorldWidth() - canvasWidth / zoom);
-    final int MAX_VIEWY_OFFSET = (ENGINE.getWorldWidth() - canvasHeight / zoom);
+    final int MAX_VIEWY_OFFSET = (ENGINE.getWorldHeight() - canvasHeight / zoom);
     if (viewXOffset < 0) viewXOffset = MIN_VIEW_OFFSET;
     if (viewYOffset < 0) viewYOffset = MIN_VIEW_OFFSET;
     if (viewXOffset > MAX_VIEWX_OFFSET) viewXOffset = MAX_VIEWX_OFFSET;
